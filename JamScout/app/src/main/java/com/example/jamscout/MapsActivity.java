@@ -1,5 +1,7 @@
 package com.example.jamscout;
 
+import static android.content.ContentValues.TAG;
+
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.FragmentActivity;
@@ -10,9 +12,10 @@ import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.Bundle;
-import android.widget.SearchView;
+import android.util.Log;
 import android.widget.Toast;
 
+import com.google.android.gms.common.api.Status;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -21,12 +24,17 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.example.jamscout.databinding.ActivityMapsBinding;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
+import com.google.android.libraries.places.api.Places;
+import com.google.android.libraries.places.api.model.Place;
+import com.google.android.libraries.places.widget.AutocompleteSupportFragment;
+import com.google.android.libraries.places.widget.listener.PlaceSelectionListener;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
@@ -34,9 +42,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     final LatLng nis = new LatLng(43.3139854, 21.8900026);
     private GoogleMap map;
     private boolean has_current_location = false;
-    private ActivityMapsBinding binding;
     private Location currentLocation = new Location(LocationManager.GPS_PROVIDER);
-    private SearchView mapSearchView;
     private LatLng gotoLocation;
     private FusedLocationProviderClient flpc;
 
@@ -45,22 +51,31 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
 
-        mapSearchView = findViewById(R.id.mapSearch);
-
         currentLocation.setLatitude(43.3139854);
         currentLocation.setLongitude(21.8900026);
 
-        //binding = ActivityMapsBinding.inflate(getLayoutInflater());
-        //setContentView(binding.getRoot());
+        if (!Places.isInitialized()) {
+            Places.initialize(getApplicationContext(), "AIzaSyAvkuVq1jdKvLKFrSLBuT9rbjzlJ9mUU4k", Locale.US);
+        }
+
+        AutocompleteSupportFragment autocompleteFragment = (AutocompleteSupportFragment)
+                getSupportFragmentManager().findFragmentById(R.id.autocomplete_fragment);
+        autocompleteFragment.setPlaceFields(Arrays.asList(Place.Field.ID, Place.Field.NAME));
+
 
         flpc = LocationServices.getFusedLocationProviderClient(this);
         getLastLocation();
 
-        mapSearchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+        autocompleteFragment.setOnPlaceSelectedListener(new PlaceSelectionListener() {
             @Override
-            public boolean onQueryTextSubmit(String query) {
-                String searched_location = mapSearchView.getQuery().toString();
-                List<Address> addressList = null;
+            public void onError(@NonNull Status status) {
+                Log.i(TAG, "An error occurred: " + status);
+            }
+
+            @Override
+            public void onPlaceSelected(@NonNull Place place) {
+                String searched_location = place.getName();
+                List<Address> addressList;
 
                 if (searched_location != null) {
                     Geocoder geocoder = new Geocoder(MapsActivity.this);
@@ -77,17 +92,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     map.addMarker(new MarkerOptions().position(gotoLocation).title("Vase odrediste!"));
                     map.moveCamera(CameraUpdateFactory.newLatLngZoom(gotoLocation, 15));
 
-                    if (!has_current_location) {
-                        return false;
-                    }
+//                    if (!has_current_location) {
+//                        return;
+//                    }
                 }
-                return false;
             }
 
-            @Override
-            public boolean onQueryTextChange(String newText) {
-                return false;
-            }
         });
 
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
