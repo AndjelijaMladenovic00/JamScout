@@ -52,20 +52,49 @@ from utils.general import (LOGGER, Profile, check_file, check_img_size, check_im
                            increment_path, non_max_suppression, print_args, scale_boxes, strip_optimizer, xyxy2xywh)
 from utils.torch_utils import select_device, smart_inference_mode
 from sort import *
-
+from classes_for_street_validation import *
 CARS = [438,1203,437,707]
 TAI = [281,806,271,482]
 CAR2 = [300, 670 ,246, 448]
+
+FPS = 30
+TIME_BETWEEN_FRAMES = 1/FPS
+FRAME_COUNT_FOR_ONE_MINUTE = 600 #1800
 
 def validate_track(track_array):
     return CAR2[0] < track_array[0] < CAR2[1] and CAR2[2] < track_array[1] < CAR2[3]
 
 def write_unique_detections_to_csv(objects, csv_file_path, street_name):
     unique_detections = Counter(objects)
-    
+
+    file_exists = True
+
+    data = []
+    contains = False
+
+    try:
+        with open(csv_file_path, 'r') as file:
+            csv_reader = csv.reader(file)
+            for row in csv_reader:
+                data.append(row)
+
+        for element in data:
+            if element[0] == street_name:
+                element[1] = len(unique_detections)    
+                contains = True
+                break
+             
+    except FileNotFoundError:
+        file_exists = False
+
+    if not contains:
+        data.append([street_name, len(unique_detections)])   
+
     with open(csv_file_path, 'w', newline='') as csv_file:
         writer = csv.writer(csv_file)
-        writer.writerow([street_name, len(unique_detections)])
+        if not file_exists:
+            writer.writerow(['Street_name', 'Nubmer_of_vehicles'])
+        writer.writerows(data)
             
 """Function to Draw Bounding boxes"""
 def draw_boxes(img, bbox, identities=None, categories=None, 
@@ -120,6 +149,7 @@ def run(
         half=False,  # use FP16 half-precision inference
         dnn=False,  # use OpenCV DNN for ONNX inference
         vid_stride=1,  # video frame-rate stride
+        street_name = "NikolePasica",  # video frame-rate stride
 ):
     source = str(source)
     save_img = not nosave and not source.endswith('.txt')  # save inference images
@@ -139,11 +169,22 @@ def run(
                        iou_threshold=sort_iou_thresh) 
     track_vehicles = set()
     #......................... 
-    
+    frame_count = 0
+    coor_validator = None
+    match street_name:
+        case "NikolePasica":
+            coor_validator = NikolePasicaValidator(CARS)
+        case "ZoranaDjindjica":
+            coor_validator = BulevarZoranaDjindjicaValidator(CAR2)
+        case "NikoleTesle":
+            coor_validator = BulevarZoranaDjindjicaValidator(TAI)
+        case _:
+            raise Exception("Invalid street name")
+        
     # Directories
     save_dir = increment_path(Path(project) / name, exist_ok=exist_ok)  # increment run
     (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
-    csv_path_track = save_dir / 'tracking.csv'
+    csv_path_track = './tracking.csv'
 
     # Load model
     device = select_device(device)
@@ -259,7 +300,7 @@ def run(
                         middlePoint = [x1 + ((x2 - x1) / 2), y1 + ((y2 - y1) / 2)]
                         
                         id = int(identities[j])
-                        if validate_track(middlePoint) == True:
+                        if coor_validator.validate_track(middlePoint) == True:
                             track_vehicles.add(id)
                             print(f"Id: {id}, {x1 , x2, y1, y2}, middle point {middlePoint}")
                             print("\n")
@@ -300,9 +341,18 @@ def run(
                         vid_writer[i] = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
                     vid_writer[i].write(im0)
 
+        if frame_count > 0 and frame_count % FRAME_COUNT_FOR_ONE_MINUTE == 0:
+            write_unique_detections_to_csv(track_vehicles,csv_path_track,street_name)
+            track_vehicles.clear()
+       
+        frame_count += 1
+
+        print(f'Frame_count {frame_count}')
+        
     # Print results
     t = tuple(x.t / seen * 1E3 for x in dt)  # speeds per image
-    write_unique_detections_to_csv(track_vehicles,csv_path_track,"test")
+    write_unique_detections_to_csv(track_vehicles,csv_path_track,street_name)
+
     if save_txt or save_img:
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
     if update:
@@ -311,6 +361,7 @@ def run(
 
 def parse_opt():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--street-name', type=str, default="NikolePasica", help='street for detection')
     parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'yolov5s.pt', help='model path or triton URL')
     parser.add_argument('--source', type=str, default=ROOT / 'data/images/test2017', help='file/dir/URL/glob/screen/0(webcam)')
     parser.add_argument('--data', type=str, default=ROOT / 'data/coco128.yaml', help='(optional) dataset.yaml path')
