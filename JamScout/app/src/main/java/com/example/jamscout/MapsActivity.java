@@ -15,6 +15,8 @@ import android.location.LocationManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.widget.ImageButton;
 import android.widget.Toast;
 
 import com.google.android.gms.common.api.Status;
@@ -62,6 +64,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private FusedLocationProviderClient flpc;
     private boolean driving = true;
 
+    private ImageButton button;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -82,7 +86,50 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         flpc = LocationServices.getFusedLocationProviderClient(this);
         getLastLocation();
 
-        autocompleteFragment.setOnPlaceSelectedListener(new PlaceSelectionListener() {
+        button = (ImageButton)findViewById(R.id.modeButton);
+
+        button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                driving = !driving;
+
+                if(driving){
+                    button.setImageResource(R.drawable.car);
+                }
+                else{
+                    button.setImageResource(R.drawable.walking);
+                }
+
+                map.clear();
+
+                if(currentLocation != null && (currentLocation.getLatitude()!= nis.latitude || currentLocation.getLongitude() != nis.longitude)){
+                    LatLng location = new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude());
+                    map.addMarker(new MarkerOptions().position(location).title("Vi ste ovde!"));
+                }
+
+                if(gotoMarker!=null){
+                    gotoMarker.remove();
+                }
+
+                if(gotoLocation != null) {
+                    gotoMarker = map.addMarker(new MarkerOptions().position(gotoLocation).title("Vase odrediste!"));
+                    map.moveCamera(CameraUpdateFactory.newLatLngZoom(gotoLocation, 15));
+
+                    if (!has_current_location) {
+                        Toast.makeText(MapsActivity.this,"Omogucite lokaciju da bi vam sve funkcionalnosti bile dostupne.",Toast.LENGTH_LONG).show();
+                    }
+                    else{
+                        String url = getDirectionsURL(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()), gotoLocation);
+                        DownloadTask task = new DownloadTask();
+                        task.execute(url);
+                    }
+                }
+
+            }
+        });
+
+
+            autocompleteFragment.setOnPlaceSelectedListener(new PlaceSelectionListener() {
             @Override
             public void onError(@NonNull Status status) {
                 Log.i(TAG, "An error occurred: " + status);
@@ -98,8 +145,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     gotoMarker.remove();
                     gotoLocation = null;
 
-                    LatLng location = new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude());
-                    map.addMarker(new MarkerOptions().position(location).title("Vi ste ovde!"));
+                    if(currentLocation != null && (currentLocation.getLatitude()!= nis.latitude || currentLocation.getLongitude() != nis.longitude)){
+                        LatLng location = new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude());
+                        map.addMarker(new MarkerOptions().position(location).title("Vi ste ovde!"));
+                    }
                 }
 
                 if (searched_location != null) {
