@@ -29,7 +29,6 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
@@ -41,17 +40,22 @@ import com.google.android.libraries.places.widget.listener.PlaceSelectionListene
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 
+import com.opencsv.CSVReader;
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
     private final int FINE_PERMISSION_CODE = 1;
@@ -120,7 +124,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     }
                     else{
                         String url = getDirectionsURL(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()), gotoLocation);
-                        DownloadTask task = new DownloadTask();
+                        DownloadTask task = new DownloadTask(MapsActivity.this);
                         task.execute(url);
                     }
                 }
@@ -171,7 +175,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     }
                     else{
                         String url = getDirectionsURL(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()), gotoLocation);
-                        DownloadTask task = new DownloadTask();
+                        DownloadTask task = new DownloadTask(MapsActivity.this);
                         task.execute(url);
                     }
                 }
@@ -297,7 +301,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private class DownloadTask extends AsyncTask<String, Void, String> {
-
+        private MapsActivity activity;
+        public DownloadTask(MapsActivity activity){
+            this.activity = activity;
+        }
         @Override
         protected String doInBackground(String... url) {
 
@@ -314,12 +321,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         @Override
         protected void onPostExecute(String result) {
             super.onPostExecute(result);
-            ParserTask parserTask = new ParserTask();
+            ParserTask parserTask = new ParserTask(activity);
             parserTask.execute(result);
         }
     }
     private class ParserTask extends AsyncTask<String, Integer, List<List<HashMap<String, String>>>> {
 
+        private MapsActivity activity;
+        public  ParserTask(MapsActivity activity) {
+            this.activity = activity;
+        }
         @Override
         protected List<List<HashMap<String, String>>> doInBackground(String... jsonData) {
 
@@ -341,6 +352,26 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         protected void onPostExecute(List<List<HashMap<String, String>>> result) {
             ArrayList points = new ArrayList();
             PolylineOptions lineOptions = new PolylineOptions();
+            LatLng samplePoint = new LatLng(1,1);
+            List<List<String>> data = new ArrayList<List<String>>();
+
+            InputStream is = getResources().openRawResource(R.raw.tracking);
+
+            String filename = activity.getApplicationInfo().dataDir + File.separatorChar + "raw/tracking.csv";
+
+            try (CSVReader reader = new CSVReader(new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8)))){
+                String[] values = null;
+                boolean readFirst = false;
+                while((values=reader.readNext()) != null){
+                    if(!readFirst)
+                        readFirst = true;
+                    else data.add(Arrays.asList(values));
+                }
+            }
+            catch(Exception e){
+                Toast.makeText(activity, "Nije si dobro", Toast.LENGTH_SHORT).show();
+                e.printStackTrace();
+            }
 
             for (int i = 0; i < result.size(); i++) {
 
@@ -354,13 +385,30 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     LatLng position = new LatLng(lat, lng);
 
                     points.add(position);
+
+                    if(i==0)
+                        samplePoint = position;
                 }
+
+                Geocoder geocoder = new Geocoder(activity, Locale.getDefault());
+
+                try {
+                    List<Address> address = geocoder.getFromLocation(samplePoint.latitude, samplePoint.longitude, 1);
+                    String street = address.get(0).getAddressLine(0);
+
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+
+                //CRNO - Ne znamo
+                //ZELENO - nema guzve
+                //?ZUTO - srednje
+                //CRVENO - guzva
 
                 lineOptions.addAll(points);
                 lineOptions.width(12);
                 lineOptions.color(Color.RED);
                 lineOptions.geodesic(true);
-
             }
 
             if (points.size() != 0)
