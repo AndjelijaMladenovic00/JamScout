@@ -38,6 +38,8 @@ from pathlib import Path
 
 import torch
 
+#number_of_persons, number_of_lains
+
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLOv5 root directory
 if str(ROOT) not in sys.path:
@@ -59,13 +61,11 @@ CAR2 = [300, 670 ,246, 448]
 
 FPS = 30
 TIME_BETWEEN_FRAMES = 1/FPS
-FRAME_COUNT_FOR_ONE_MINUTE = 600 #1800
+FRAME_COUNT_FOR_ONE_MINUTE = 60 #1800
 
-def validate_track(track_array):
-    return CAR2[0] < track_array[0] < CAR2[1] and CAR2[2] < track_array[1] < CAR2[3]
-
-def write_unique_detections_to_csv(objects, csv_file_path, street_name):
+def write_unique_detections_to_csv(objects, csv_file_path, street_name_lat, street_name_cir, persons):
     unique_detections = Counter(objects)
+    unique_persons = Counter(persons)
 
     file_exists = True
 
@@ -73,14 +73,15 @@ def write_unique_detections_to_csv(objects, csv_file_path, street_name):
     contains = False
 
     try:
-        with open(csv_file_path, 'r') as file:
+        with open(csv_file_path, 'r', encoding= "utf-8") as file:
             csv_reader = csv.reader(file)
             for row in csv_reader:
                 data.append(row)
+                print(f'{row}\n')
 
         for element in data:
-            if element[0] == street_name:
-                element[1] = len(unique_detections)    
+            if element[0] == street_name_lat:
+                element[2] = len(unique_detections)    
                 contains = True
                 break
              
@@ -88,12 +89,12 @@ def write_unique_detections_to_csv(objects, csv_file_path, street_name):
         file_exists = False
 
     if not contains:
-        data.append([street_name, len(unique_detections)])   
+        data.append([street_name_lat,street_name_cir, len(unique_detections), len(unique_persons)])   
 
-    with open(csv_file_path, 'w', newline='') as csv_file:
+    with open(csv_file_path, 'w', newline='', encoding ="utf-8") as csv_file:
         writer = csv.writer(csv_file)
         if not file_exists:
-            writer.writerow(['Street_name', 'Nubmer_of_vehicles'])
+            data.insert(0,['Street_name_lat','Street_name_cir', 'Number_of_vehicles', 'Number_of_persons'])
         writer.writerows(data)
             
 """Function to Draw Bounding boxes"""
@@ -149,7 +150,8 @@ def run(
         half=False,  # use FP16 half-precision inference
         dnn=False,  # use OpenCV DNN for ONNX inference
         vid_stride=1,  # video frame-rate stride
-        street_name = "NikolePasica",  # video frame-rate stride
+        street_name_lat = "NikolePasica",  # video frame-rate stride
+        street_name_cir = "НиколеПашића",  # video frame-rate stride
 ):
     source = str(source)
     save_img = not nosave and not source.endswith('.txt')  # save inference images
@@ -168,10 +170,12 @@ def run(
                        min_hits=sort_min_hits,
                        iou_threshold=sort_iou_thresh) 
     track_vehicles = set()
+    track_persons = set()
+
     #......................... 
     frame_count = 0
     coor_validator = None
-    match street_name:
+    match street_name_lat:
         case "NikolePasica":
             coor_validator = NikolePasicaValidator(CARS)
         case "ZoranaDjindjica":
@@ -184,7 +188,7 @@ def run(
     # Directories
     save_dir = increment_path(Path(project) / name, exist_ok=exist_ok)  # increment run
     (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
-    csv_path_track = './tracking.csv'
+    csv_path_track = "..\\JamScout\\app\\src\\main\\res\\raw\\tracking.csv"
 
     # Load model
     device = select_device(device)
@@ -283,31 +287,42 @@ def run(
                 
                 # NOTE: We send in detected object class too
                 for x1,y1,x2,y2,conf,detclass in det.cpu().detach().numpy():
+                    
                     dets_to_sort = np.vstack((dets_to_sort, 
                                               np.array([x1, y1, x2, y2, 
                                                         conf, detclass])))
+                    
                  
                 # Run SORT
                 tracked_dets = sort_tracker.update(dets_to_sort)
                 tracks =sort_tracker.getTrackers()
+
                 # draw boxes for visualization
                 if len(tracked_dets)>0:
                     bbox_xyxy = tracked_dets[:,:4]
                     identities = tracked_dets[:, 8]
+                    classes = tracked_dets[:,4]
 
                     for j, box  in enumerate(bbox_xyxy):
                         x1, y1, x2, y2 = [int(i) for i in box]
                         middlePoint = [x1 + ((x2 - x1) / 2), y1 + ((y2 - y1) / 2)]
-                        
                         id = int(identities[j])
+                        clas = int(classes[j])
+                        
                         if coor_validator.validate_track(middlePoint) == True:
-                            track_vehicles.add(id)
-                            print(f"Id: {id}, {x1 , x2, y1, y2}, middle point {middlePoint}")
+                            if clas in [2,3,5,7]:
+                                track_vehicles.add(id)
+                            else:
+                                track_persons.add(id)
+
+                            print(f"Id: {id}, class {clas}, {x1 , x2, y1, y2}, middle point {middlePoint}")
                             print("\n")
                             print(track_vehicles)
                             print("\n")
                     categories = tracked_dets[:, 4]
                     draw_boxes(im0, bbox_xyxy, identities, categories, names,color_box=None)
+
+
 
 
             # Stream results
@@ -342,7 +357,7 @@ def run(
                     vid_writer[i].write(im0)
 
         if frame_count > 0 and frame_count % FRAME_COUNT_FOR_ONE_MINUTE == 0:
-            write_unique_detections_to_csv(track_vehicles,csv_path_track,street_name)
+            write_unique_detections_to_csv(track_vehicles,csv_path_track,street_name_lat, street_name_cir, track_persons)
             track_vehicles.clear()
        
         frame_count += 1
@@ -351,7 +366,7 @@ def run(
         
     # Print results
     t = tuple(x.t / seen * 1E3 for x in dt)  # speeds per image
-    write_unique_detections_to_csv(track_vehicles,csv_path_track,street_name)
+    write_unique_detections_to_csv(track_vehicles,csv_path_track,street_name_lat, street_name_cir,track_persons)
 
     if save_txt or save_img:
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
@@ -361,7 +376,8 @@ def run(
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--street-name', type=str, default="NikolePasica", help='street for detection')
+    parser.add_argument('--street-name-cir', type=str, default="НиколеПашића", help='street for detection')
+    parser.add_argument('--street-name-lat', type=str, default="NikolePasica", help='street for detection')
     parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'yolov5s.pt', help='model path or triton URL')
     parser.add_argument('--source', type=str, default=ROOT / 'data/images/test2017', help='file/dir/URL/glob/screen/0(webcam)')
     parser.add_argument('--data', type=str, default=ROOT / 'data/coco128.yaml', help='(optional) dataset.yaml path')
