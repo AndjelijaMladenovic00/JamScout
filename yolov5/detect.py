@@ -61,7 +61,7 @@ CAR2 = [300, 670 ,246, 448]
 
 FPS = 30
 TIME_BETWEEN_FRAMES = 1/FPS
-FRAME_COUNT_FOR_ONE_MINUTE = 60 #1800
+FRAME_COUNT_FOR_ONE_MINUTE = 400
 
 def write_unique_detections_to_csv(objects, csv_file_path, street_name_lat, street_name_cir, persons, lanes):
 
@@ -151,8 +151,8 @@ def run(
         half=False,  # use FP16 half-precision inference
         dnn=False,  # use OpenCV DNN for ONNX inference
         vid_stride=1,  # video frame-rate stride
-        street_name_lat = "NikolePasica",  # video frame-rate stride
-        street_name_cir = "НиколеПашића",  # video frame-rate stride
+        street_name_lat = "VojvodeMisica",  # video frame-rate stride
+        street_name_cir = "ВојводеМишића",  # video frame-rate stride
 ):
     source = str(source)
     save_img = not nosave and not source.endswith('.txt')  # save inference images
@@ -177,12 +177,16 @@ def run(
     frame_count = 0
     coor_validator = None
     match street_name_lat:
-        case "NikolePasica":
-            coor_validator = NikolePasicaValidator(CARS)
-        case "ZoranaDjindjica":
+        case "Sremska":
+            coor_validator = Sremska(CARS)
+        case "BulevarZoranaDjindjica":
             coor_validator = BulevarZoranaDjindjicaValidator(CAR2)
-        case "NikoleTesle":
-            coor_validator = BulevarZoranaDjindjicaValidator(TAI)
+        case "BulevarNemanjica":
+            coor_validator = BulevarNemanjicaValidator(TAI)
+        case "VojvodeMisica":
+            coor_validator = VojvodeMisicaValidator(TAI) 
+        case "BulevarNikoleTesle":
+            coor_validator = BulevarNikoleTesleValidator(CARS)                   
         case _:
             raise Exception("Invalid street name")
         
@@ -360,6 +364,7 @@ def run(
         if frame_count > 0 and frame_count % FRAME_COUNT_FOR_ONE_MINUTE == 0:
             write_unique_detections_to_csv(track_vehicles,csv_path_track,street_name_lat, street_name_cir, track_persons,coor_validator.number_of_lains)
             track_vehicles.clear()
+            track_persons.clear()
        
         frame_count += 1
 
@@ -377,8 +382,8 @@ def run(
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--street-name-cir', type=str, default="НиколеПашића", help='street for detection')
-    parser.add_argument('--street-name-lat', type=str, default="NikolePasica", help='street for detection')
+    parser.add_argument('--street-name-cir', type=str, default="ВојводеМишића", help='street for detection')
+    parser.add_argument('--street-name-lat', type=str, default="VojvodeMisica", help='street for detection')
     parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'yolov5s.pt', help='model path or triton URL')
     parser.add_argument('--source', type=str, default=ROOT / 'data/images/test2017', help='file/dir/URL/glob/screen/0(webcam)')
     parser.add_argument('--data', type=str, default=ROOT / 'data/coco128.yaml', help='(optional) dataset.yaml path')
