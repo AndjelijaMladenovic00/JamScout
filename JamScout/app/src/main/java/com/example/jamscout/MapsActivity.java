@@ -350,14 +350,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         @Override
         protected void onPostExecute(List<List<HashMap<String, String>>> result) {
-            ArrayList points = new ArrayList();
-            PolylineOptions lineOptions = new PolylineOptions();
-            LatLng samplePoint = new LatLng(1,1);
+            ArrayList<LatLng> points = new ArrayList<LatLng>();
             List<List<String>> data = new ArrayList<List<String>>();
+            String previous_street = null;
 
             InputStream is = getResources().openRawResource(R.raw.tracking);
-
-            String filename = activity.getApplicationInfo().dataDir + File.separatorChar + "raw/tracking.csv";
 
             try (CSVReader reader = new CSVReader(new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8)))){
                 String[] values = null;
@@ -369,7 +366,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 }
             }
             catch(Exception e){
-                Toast.makeText(activity, "Nije si dobro", Toast.LENGTH_SHORT).show();
                 e.printStackTrace();
             }
 
@@ -386,34 +382,75 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                     points.add(position);
 
-                    if(i==0)
-                        samplePoint = position;
+                    Geocoder geocoder = new Geocoder(activity, Locale.getDefault());
+
+                    String street;
+                    try {
+                        List<Address> address = geocoder.getFromLocation(position.latitude, position.longitude, 1);
+                        List<String> split_address = Arrays.asList(address.get(0).getAddressLine(0).split(","));
+                        street = split_address.get(0).replace(" ", "");
+
+                        if(j>0){
+                            PolylineOptions options = new PolylineOptions();
+                            options.add(points.get(j-1));
+                            options.add(points.get(j));
+                            options.width(12);
+                            options.geodesic(true);
+
+                            //OVO JE ZA TESTIRANJE
+//                            if(j==71){
+//                                map.addMarker(new MarkerOptions().position(position).title("Vi ste ovde!"));
+//                                Toast.makeText(activity, street, Toast.LENGTH_LONG).show();
+//                            }
+
+                            int index = 0;
+                            boolean found = false;
+
+                            while(!found && index < data.size()){
+                                //OVO DEF NIJE DOBRO, ALI OK
+                                if (previous_street.toLowerCase().contains(data.get(index).get(0).toLowerCase()) || previous_street.toLowerCase().contains(data.get(index).get(1).toLowerCase()) || street.toLowerCase().contains(data.get(index).get(0).toLowerCase()) || street.toLowerCase().contains(data.get(index).get(1).toLowerCase())){
+                                    found = true;
+                                    break;
+                                }
+                                else{
+                                    index++;
+                                }
+                            }
+
+                            if(!found){
+                                options.color(Color.BLACK);
+                            }
+                            else{
+                                float coefficient = Integer.parseInt(data.get(index).get(2)) / Integer.parseInt(data.get(index).get(4));
+                                if(driving){
+                                    coefficient += Integer.parseInt(data.get(index).get(3)) * 0.1;
+                                }
+                                else coefficient += Integer.parseInt(data.get(index).get(3)) * 0.5;
+
+                                if(coefficient<=2){
+                                    options.color(Color.GREEN);
+                                }
+                                else if(coefficient<=5){
+                                    options.color(Color.YELLOW);
+                                }
+                                else options.color(Color.RED);
+                            }
+
+                            map.addPolyline(options);
+                        }
+
+                        previous_street = street;
+
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
                 }
 
-                Geocoder geocoder = new Geocoder(activity, Locale.getDefault());
-
-                try {
-                    List<Address> address = geocoder.getFromLocation(samplePoint.latitude, samplePoint.longitude, 1);
-                    String street = address.get(0).getAddressLine(0);
-
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-
-                //CRNO - Ne znamo
-                //ZELENO - nema guzve
-                //?ZUTO - srednje
-                //CRVENO - guzva
-
-                lineOptions.addAll(points);
-                lineOptions.width(12);
-                lineOptions.color(Color.RED);
-                lineOptions.geodesic(true);
             }
-
-            if (points.size() != 0)
-                map.addPolyline(lineOptions);
         }
+
     }
+
 }
+
 

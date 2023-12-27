@@ -1,2 +1,6 @@
-Street_name_lat,Street_name_cir,Number_of_vehicles,Number_of_persons
-NikolePasica,НиколеПашића,4,0
+Street_name_lat,Street_name_cir,Number_of_vehicles,Number_of_persons,Number_of_lanes
+NikolePasica,НиколеПашића,4,0,4
+BrankaKrsmanovica,БранкаКрсмановића,6,1,2
+BulevarNemanjica,БулеварНемањића,20,10,4
+Sremska,Сремска,2,1,2
+BlagojaParovica,БлагојаПаровића,15,8,2
