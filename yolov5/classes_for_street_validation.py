@@ -17,7 +17,8 @@ class NikolePasicaValidator(BaseValidator):
         self.x2 = array_for_attrs[1]
         self.y1 = array_for_attrs[2]
         self.y2 = array_for_attrs[3]
-
+        self.number_of_lains = 1
+        
     def validate_track(self, track_array):
         return  self.x1 < track_array[0] < self.x2 and self.y1< track_array[1] < self.y2
 
@@ -29,6 +30,7 @@ class BulevarZoranaDjindjicaValidator(BaseValidator):
         self.x2 = array_for_attrs[1]
         self.y1 = array_for_attrs[2]
         self.y2 = array_for_attrs[3]
+        self.number_of_lains = 2
 
     def validate_track(self, track_array):
         return  self.x1 < track_array[0] < self.x2 and self.y1< track_array[1] < self.y2
@@ -40,6 +42,7 @@ class BulevarNikoleTesleValidator(BaseValidator):
         self.x2 = array_for_attrs[1]
         self.y1 = array_for_attrs[2]
         self.y2 = array_for_attrs[3]
+        self.number_of_lains = 2
 
     def validate_track(self, track_array):
         return  self.x1 < track_array[0] < self.x2 and self.y1< track_array[1] < self.y2    

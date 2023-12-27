@@ -63,7 +63,8 @@ FPS = 30
 TIME_BETWEEN_FRAMES = 1/FPS
 FRAME_COUNT_FOR_ONE_MINUTE = 60 #1800
 
-def write_unique_detections_to_csv(objects, csv_file_path, street_name_lat, street_name_cir, persons):
+def write_unique_detections_to_csv(objects, csv_file_path, street_name_lat, street_name_cir, persons, lanes):
+
     unique_detections = Counter(objects)
     unique_persons = Counter(persons)
 
@@ -89,12 +90,12 @@ def write_unique_detections_to_csv(objects, csv_file_path, street_name_lat, stre
         file_exists = False
 
     if not contains:
-        data.append([street_name_lat,street_name_cir, len(unique_detections), len(unique_persons)])   
+        data.append([street_name_lat,street_name_cir, len(unique_detections), len(unique_persons), lanes])   
 
     with open(csv_file_path, 'w', newline='', encoding ="utf-8") as csv_file:
         writer = csv.writer(csv_file)
         if not file_exists:
-            data.insert(0,['Street_name_lat','Street_name_cir', 'Number_of_vehicles', 'Number_of_persons'])
+            data.insert(0,['Street_name_lat','Street_name_cir', 'Number_of_vehicles', 'Number_of_persons', 'Number_of_lanes'])
         writer.writerows(data)
             
 """Function to Draw Bounding boxes"""
@@ -357,7 +358,7 @@ def run(
                     vid_writer[i].write(im0)
 
         if frame_count > 0 and frame_count % FRAME_COUNT_FOR_ONE_MINUTE == 0:
-            write_unique_detections_to_csv(track_vehicles,csv_path_track,street_name_lat, street_name_cir, track_persons)
+            write_unique_detections_to_csv(track_vehicles,csv_path_track,street_name_lat, street_name_cir, track_persons,coor_validator.number_of_lains)
             track_vehicles.clear()
        
         frame_count += 1
@@ -366,7 +367,7 @@ def run(
         
     # Print results
     t = tuple(x.t / seen * 1E3 for x in dt)  # speeds per image
-    write_unique_detections_to_csv(track_vehicles,csv_path_track,street_name_lat, street_name_cir,track_persons)
+    write_unique_detections_to_csv(track_vehicles,csv_path_track,street_name_lat, street_name_cir,track_persons,coor_validator.number_of_lains)
 
     if save_txt or save_img:
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
