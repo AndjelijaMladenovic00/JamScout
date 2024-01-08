@@ -40,22 +40,21 @@ import com.google.android.libraries.places.widget.listener.PlaceSelectionListene
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.regex.Pattern;
 
 import com.opencsv.CSVReader;
+
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
     private final int FINE_PERMISSION_CODE = 1;
@@ -67,7 +66,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private Marker gotoMarker;
     private FusedLocationProviderClient flpc;
     private boolean driving = true;
-
     private ImageButton button;
 
     @Override
@@ -90,39 +88,37 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         flpc = LocationServices.getFusedLocationProviderClient(this);
         getLastLocation();
 
-        button = (ImageButton)findViewById(R.id.modeButton);
+        button = (ImageButton) findViewById(R.id.modeButton);
 
         button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 driving = !driving;
 
-                if(driving){
+                if (driving) {
                     button.setImageResource(R.drawable.car);
-                }
-                else{
+                } else {
                     button.setImageResource(R.drawable.walking);
                 }
 
                 map.clear();
 
-                if(currentLocation != null && (currentLocation.getLatitude()!= nis.latitude || currentLocation.getLongitude() != nis.longitude)){
+                if (currentLocation != null && (currentLocation.getLatitude() != nis.latitude || currentLocation.getLongitude() != nis.longitude)) {
                     LatLng location = new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude());
                     map.addMarker(new MarkerOptions().position(location).title("Vi ste ovde!"));
                 }
 
-                if(gotoMarker!=null){
+                if (gotoMarker != null) {
                     gotoMarker.remove();
                 }
 
-                if(gotoLocation != null) {
+                if (gotoLocation != null) {
                     gotoMarker = map.addMarker(new MarkerOptions().position(gotoLocation).title("Vase odrediste!"));
                     map.moveCamera(CameraUpdateFactory.newLatLngZoom(gotoLocation, 15));
 
                     if (!has_current_location) {
-                        Toast.makeText(MapsActivity.this,"Omogucite lokaciju da bi vam sve funkcionalnosti bile dostupne.",Toast.LENGTH_LONG).show();
-                    }
-                    else{
+                        Toast.makeText(MapsActivity.this, "Omogucite lokaciju da bi vam sve funkcionalnosti bile dostupne.", Toast.LENGTH_LONG).show();
+                    } else {
                         String url = getDirectionsURL(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()), gotoLocation);
                         DownloadTask task = new DownloadTask(MapsActivity.this);
                         task.execute(url);
@@ -132,8 +128,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         });
 
-
-            autocompleteFragment.setOnPlaceSelectedListener(new PlaceSelectionListener() {
+        autocompleteFragment.setOnPlaceSelectedListener(new PlaceSelectionListener() {
             @Override
             public void onError(@NonNull Status status) {
                 Log.i(TAG, "An error occurred: " + status);
@@ -144,12 +139,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 String searched_location = place.getName();
                 List<Address> addressList;
 
-                if(gotoMarker!=null){
+                if (gotoMarker != null) {
                     map.clear();
                     gotoMarker.remove();
                     gotoLocation = null;
 
-                    if(currentLocation != null && (currentLocation.getLatitude()!= nis.latitude || currentLocation.getLongitude() != nis.longitude)){
+                    if (currentLocation != null && (currentLocation.getLatitude() != nis.latitude || currentLocation.getLongitude() != nis.longitude)) {
                         LatLng location = new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude());
                         map.addMarker(new MarkerOptions().position(location).title("Vi ste ovde!"));
                     }
@@ -171,9 +166,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     map.moveCamera(CameraUpdateFactory.newLatLngZoom(gotoLocation, 15));
 
                     if (!has_current_location) {
-                        Toast.makeText(MapsActivity.this,"Omogucite lokaciju da bi vam sve funkcionalnosti bile dostupne.",Toast.LENGTH_LONG).show();
-                    }
-                    else{
+                        Toast.makeText(MapsActivity.this, "Omogucite lokaciju da bi vam sve funkcionalnosti bile dostupne.", Toast.LENGTH_LONG).show();
+                    } else {
                         String url = getDirectionsURL(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()), gotoLocation);
                         DownloadTask task = new DownloadTask(MapsActivity.this);
                         task.execute(url);
@@ -218,14 +212,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         LatLng location = new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude());
 
-        if(Math.abs(location.latitude - nis.latitude) > 0.15 || Math.abs(location.longitude - nis.longitude) > 0.15) {
+        if (Math.abs(location.latitude - nis.latitude) > 0.15 || Math.abs(location.longitude - nis.longitude) > 0.15) {
             map.moveCamera(CameraUpdateFactory.newLatLngZoom(nis, 14));
-        }
-        else {
+        } else {
             map.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 15));
         }
 
-        if(!location.equals(nis)){
+        if (!location.equals(nis)) {
             map.addMarker(new MarkerOptions().position(location).title("Vi ste ovde!"));
         }
     }
@@ -235,7 +228,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
-        if(requestCode == FINE_PERMISSION_CODE) {
+        if (requestCode == FINE_PERMISSION_CODE) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 getLastLocation();
             } else {
@@ -248,12 +241,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
-    private String getDirectionsURL(LatLng origin, LatLng dest){
+    private String getDirectionsURL(LatLng origin, LatLng dest) {
         String str_origin = "origin=" + origin.latitude + "," + origin.longitude;
         String str_dest = "destination=" + dest.latitude + "," + dest.longitude;
 
         String mode;
-        if(driving)
+        if (driving)
             mode = "mode=driving";
         else mode = "mode=walking";
 
@@ -302,9 +295,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private class DownloadTask extends AsyncTask<String, Void, String> {
         private MapsActivity activity;
-        public DownloadTask(MapsActivity activity){
+
+        public DownloadTask(MapsActivity activity) {
             this.activity = activity;
         }
+
         @Override
         protected String doInBackground(String... url) {
 
@@ -325,12 +320,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             parserTask.execute(result);
         }
     }
+
     private class ParserTask extends AsyncTask<String, Integer, List<List<HashMap<String, String>>>> {
 
         private MapsActivity activity;
-        public  ParserTask(MapsActivity activity) {
+
+        public ParserTask(MapsActivity activity) {
             this.activity = activity;
         }
+
         @Override
         protected List<List<HashMap<String, String>>> doInBackground(String... jsonData) {
 
@@ -352,20 +350,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         protected void onPostExecute(List<List<HashMap<String, String>>> result) {
             ArrayList<LatLng> points = new ArrayList<LatLng>();
             List<List<String>> data = new ArrayList<List<String>>();
-            String previous_street = null;
+            List<String> previous_street_names = null;
 
             InputStream is = getResources().openRawResource(R.raw.tracking);
 
-            try (CSVReader reader = new CSVReader(new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8)))){
+            try (CSVReader reader = new CSVReader(new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8)))) {
                 String[] values = null;
                 boolean readFirst = false;
-                while((values=reader.readNext()) != null){
-                    if(!readFirst)
+                while ((values = reader.readNext()) != null) {
+                    if (!readFirst)
                         readFirst = true;
                     else data.add(Arrays.asList(values));
                 }
-            }
-            catch(Exception e){
+            } catch (Exception e) {
                 e.printStackTrace();
             }
 
@@ -384,73 +381,89 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                     Geocoder geocoder = new Geocoder(activity, Locale.getDefault());
 
-                    String street;
                     try {
-                        List<Address> address = geocoder.getFromLocation(position.latitude, position.longitude, 1);
-                        List<String> split_address = Arrays.asList(address.get(0).getAddressLine(0).split(","));
-                        street = split_address.get(0).replace(" ", "");
+                        List<Address> address = geocoder.getFromLocation(position.latitude, position.longitude, 3);
 
-                        if(j>0){
+                        List<String> all_streets = new ArrayList<String>();
+                        String current_street = null;
+
+                        for (i = 0; i < address.size(); i++) {
+
+                            List<String> split_address = Arrays.asList(address.get(i).getAddressLine(0).split(","));
+
+                            if (split_address.size() == 3) {
+                                String street_name = split_address.get(0);
+                                List<String> words = Arrays.asList(street_name.split(" "));
+                                List<String> remaining_words = new ArrayList<String>();
+
+                                Pattern pattern = Pattern.compile(".*\\d.*");
+
+                                for (String str : words) {
+                                    if (!pattern.matcher(str).matches()) {
+                                        remaining_words.add(str);
+                                    }
+                                }
+
+                                street_name = String.join("", remaining_words);
+
+                                all_streets.add(street_name);
+
+                                if (previous_street_names != null && previous_street_names.contains(street_name)) {
+                                    current_street = street_name;
+                                }
+                            }
+                        }
+                        if (current_street == null) {
+                            current_street = all_streets.get(0);
+                        }
+
+                        if (j > 0) {
                             PolylineOptions options = new PolylineOptions();
-                            options.add(points.get(j-1));
+                            options.add(points.get(j - 1));
                             options.add(points.get(j));
                             options.width(12);
                             options.geodesic(true);
 
-                            //OVO JE ZA TESTIRANJE
-//                            if(j==71){
-//                                map.addMarker(new MarkerOptions().position(position).title("Vi ste ovde!"));
-//                                Toast.makeText(activity, street, Toast.LENGTH_LONG).show();
-//                            }
-
                             int index = 0;
                             boolean found = false;
 
-                            while(!found && index < data.size()){
-                                //OVO DEF NIJE DOBRO, ALI OK
-                                if (previous_street.toLowerCase().contains(data.get(index).get(0).toLowerCase()) || previous_street.toLowerCase().contains(data.get(index).get(1).toLowerCase()) || street.toLowerCase().contains(data.get(index).get(0).toLowerCase()) || street.toLowerCase().contains(data.get(index).get(1).toLowerCase())){
+                            while (!found && index < data.size()) {
+                                if (current_street.toLowerCase().contains(data.get(index).get(0).toLowerCase()) || current_street.toLowerCase().contains(data.get(index).get(1).toLowerCase())) {
                                     found = true;
                                     break;
-                                }
-                                else{
+                                } else {
                                     index++;
                                 }
                             }
 
-                            if(!found){
+                            if (!found || data.get(index).size() != 5) {
                                 options.color(Color.BLACK);
-                            }
-                            else{
+                            } else {
                                 float coefficient = Integer.parseInt(data.get(index).get(2)) / Integer.parseInt(data.get(index).get(4));
-                                if(driving){
+                                if (driving) {
                                     coefficient += Integer.parseInt(data.get(index).get(3)) * 0.1;
-                                }
-                                else coefficient += Integer.parseInt(data.get(index).get(3)) * 0.5;
+                                } else
+                                    coefficient += Integer.parseInt(data.get(index).get(3)) * 0.5;
 
-                                if(coefficient<=2){
+                                if (coefficient <= 2) {
                                     options.color(Color.GREEN);
-                                }
-                                else if(coefficient<=5){
+                                } else if (coefficient <= 5) {
                                     options.color(Color.YELLOW);
-                                }
-                                else options.color(Color.RED);
+                                } else options.color(Color.RED);
                             }
 
                             map.addPolyline(options);
                         }
 
-                        previous_street = street;
+                        previous_street_names = all_streets;
 
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
                 }
-
             }
         }
-
     }
-
 }
 
 
