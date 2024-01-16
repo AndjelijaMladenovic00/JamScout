@@ -6,6 +6,10 @@ import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.FragmentActivity;
 
+import android.annotation.SuppressLint;
+import android.app.AlertDialog;
+import android.content.Context;
+import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.location.Address;
@@ -40,20 +44,31 @@ import com.google.android.libraries.places.widget.listener.PlaceSelectionListene
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.FileWriter;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
 import com.opencsv.CSVReader;
+import com.opencsv.CSVWriter;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
@@ -67,7 +82,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private FusedLocationProviderClient flpc;
     private boolean driving = true;
     private ImageButton button;
+    private ImageButton reportButton;
+    private List<String> all_streets = null;
 
+    @SuppressLint("MissingInflatedId")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -127,6 +145,104 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
             }
         });
+
+        reportButton = (ImageButton) findViewById(R.id.reportButton);
+
+        reportButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                AlertDialog dialog;
+                AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
+
+                builder.setTitle("Prijavljujete gužvu?");
+                builder.setMessage("Potvrdom ovog dijaloga prijavićete gužvu na svojoj trenutnoj lokaciji. Da li želite da nastavite?");
+                builder.setPositiveButton("Da", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        if (ActivityCompat.checkSelfPermission(MapsActivity.this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(MapsActivity.this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                            ActivityCompat.requestPermissions(MapsActivity.this, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, FINE_PERMISSION_CODE);
+                            Toast.makeText(MapsActivity.this, "Ne možete prijaviti gužvu ako Vam nije uključena lokacija!", Toast.LENGTH_LONG).show();
+                            return;
+                        }
+                        Task<Location> task = flpc.getLastLocation();
+                        task.addOnSuccessListener(new OnSuccessListener<Location>() {
+                            @Override
+                            public void onSuccess(Location location) {
+                                if (location != null) {
+                                    Geocoder geocoder = new Geocoder(MapsActivity.this, Locale.getDefault());
+                                    try {
+                                        List<Address> address = geocoder.getFromLocation(location.getLatitude(), location.getLongitude(), 3);
+                                        String current_street_name = null;
+
+                                        for (int i = 0; i < address.size(); i++) {
+
+                                            List<String> split_address = Arrays.asList(address.get(i).getAddressLine(0).split(","));
+
+                                            if (split_address.size() == 3) {
+                                                String street_name = split_address.get(0);
+                                                List<String> words = Arrays.asList(street_name.split(" "));
+                                                List<String> remaining_words = new ArrayList<String>();
+
+                                                Pattern pattern = Pattern.compile(".*\\d.*");
+
+                                                for (String str : words) {
+                                                    if (!pattern.matcher(str).matches()) {
+                                                        remaining_words.add(str);
+                                                    }
+                                                }
+
+                                                street_name = String.join("", remaining_words);
+
+                                                if(current_street_name == null)
+                                                    current_street_name = street_name;
+
+                                                if(all_streets == null) {
+                                                    break;
+                                                }
+                                                else if(all_streets.contains(street_name)){
+                                                    current_street_name = street_name;
+                                                    break;
+                                                }
+                                            }
+                                        }
+
+                                        if(current_street_name == null)
+                                            Toast.makeText(MapsActivity.this, "Došlo je do greške pri prijavi gužve!", Toast.LENGTH_LONG).show();
+
+                                        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().getTime());
+                                        String report = current_street_name+ "," + timeStamp + "\n";
+
+                                        try {
+                                            FileOutputStream fos = MapsActivity.this.openFileOutput("reports.csv", Context.MODE_APPEND);
+                                            fos.write(report.getBytes());
+                                            fos.close();
+
+                                            Toast.makeText(MapsActivity.this, "Uspešno ste prijavili gužvu na svojoj trenutnoj lokaciji!", Toast.LENGTH_LONG).show();
+
+                                        }catch(IOException e){
+                                            Toast.makeText(MapsActivity.this, "Došlo je do greške pri prijavi gužve!", Toast.LENGTH_LONG).show();
+                                        }
+                                    } catch (IOException e) {
+                                        Toast.makeText(MapsActivity.this, "Došlo je do greške pri prijavi gužve!", Toast.LENGTH_LONG).show();
+                                    }
+                                }
+                            }
+                        });
+                    }
+                });
+
+                builder.setNegativeButton("Ne", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        return;
+                    }
+                });
+
+                dialog = builder.create();
+                dialog.show();
+            }
+        });
+
 
         autocompleteFragment.setOnPlaceSelectedListener(new PlaceSelectionListener() {
             @Override
@@ -366,6 +482,28 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 e.printStackTrace();
             }
 
+            List<String> content = new ArrayList<String>();
+
+            try {
+                FileInputStream fis = openFileInput("reports.csv");
+                InputStreamReader isr = new InputStreamReader(fis);
+                BufferedReader br = new BufferedReader(isr);
+
+                br.readLine();
+
+                String line;
+                while ((line = br.readLine()) != null) {
+                    if(!line.equals("")) content.add(line);
+                }
+
+                br.close();
+                isr.close();
+                fis.close();
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
             for (int i = 0; i < result.size(); i++) {
 
                 List<HashMap<String, String>> path = result.get(i);
@@ -382,9 +520,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     Geocoder geocoder = new Geocoder(activity, Locale.getDefault());
 
                     try {
-                        List<Address> address = geocoder.getFromLocation(position.latitude, position.longitude, 3);
+                        List<Address> address = geocoder.getFromLocation(position.latitude, position.longitude, 6);
 
-                        List<String> all_streets = new ArrayList<String>();
+                        all_streets = new ArrayList<String>();
                         String current_street = null;
 
                         for (i = 0; i < address.size(); i++) {
@@ -408,7 +546,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                                 all_streets.add(street_name);
 
-                                if (previous_street_names != null && previous_street_names.contains(street_name)) {
+                                if (current_street == null && previous_street_names != null && previous_street_names.contains(street_name)) {
                                     current_street = street_name;
                                 }
                             }
@@ -426,6 +564,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                             int index = 0;
                             boolean found = false;
+                            int number_of_reports = 0;
 
                             while (!found && index < data.size()) {
                                 if (current_street.toLowerCase().contains(data.get(index).get(0).toLowerCase()) || current_street.toLowerCase().contains(data.get(index).get(1).toLowerCase())) {
@@ -436,10 +575,26 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 }
                             }
 
+                            for(int n=0; n<content.size(); n++) {
+                                String[] elements = content.get(n).split(",");
+                                if(elements[0].toLowerCase().equals(current_street.toLowerCase())){
+                                    String[] date_elements = elements[1].split("_");
+                                    String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(Calendar.getInstance().getTime());
+                                    String[] current_date_elements = timeStamp.split("_");
+
+                                    if(!date_elements[0].equals(current_date_elements[0])) break;
+                                    int timestamp_minutes = Integer.parseInt(date_elements[1].substring(0, 2)) * 60 + Integer.parseInt(date_elements[1].substring(2, 4));
+                                    int current_minutes = Integer.parseInt(current_date_elements[1].substring(0, 2)) * 60 + Integer.parseInt(current_date_elements[1].substring(2, 4));
+
+                                    if(current_minutes - timestamp_minutes <= 5) number_of_reports++;
+                                }
+                            }
+
                             if (!found || data.get(index).size() != 5) {
                                 options.color(Color.BLACK);
                             } else {
-                                float coefficient = Integer.parseInt(data.get(index).get(2)) / Integer.parseInt(data.get(index).get(4));
+                                double coefficient = Integer.parseInt(data.get(index).get(2)) / Integer.parseInt(data.get(index).get(4)) + number_of_reports * 0.5;
+                                Log.i(TAG, "KOEFICIJENT " + current_street + " " + String.valueOf(coefficient));
                                 if (driving) {
                                     coefficient += Integer.parseInt(data.get(index).get(3)) * 0.1;
                                 } else

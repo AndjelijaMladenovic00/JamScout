@@ -1,9 +1,9 @@
 Street_name_lat,Street_name_cir,Number_of_vehicles,Number_of_persons,Number_of_lanes
 NikolePasica,НиколеПашића,5,0,1
-Sremska,Сремска,15,0,2
-BulevarZoranaDjindjica,БулеварЗоранаЂинђића,23,0,3
+Sremska,Сремска,6,0,2
+BulevarZoranaDjindjica,БулеварЗоранаЂинђића,23,0,4
 BulevarNemanjica,БулеварНемањића,20,1,2
 BulevarNikoleTesle,БулеварНиколеТесле,8,0,2
 VojvodeMisica,ВојводеМишића,32,4,2
-BrankaKrsmanovica,БранкаКрсмановића,6,1,2
-BlagojaParovica,БлагојаПаровића,15,8,2
+BrankaKrsmanovica,БранкаКрсмановића,2,1,2
+BlagojaParovica,БлагојаПаровића,15,8,4
