@@ -555,6 +555,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             current_street = all_streets.get(0);
                         }
 
+                        Log.i(TAG, "Trenutna ulica " + current_street );
+
                         if (j > 0) {
                             PolylineOptions options = new PolylineOptions();
                             options.add(points.get(j - 1));
@@ -596,13 +598,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 double coefficient = Integer.parseInt(data.get(index).get(2)) / Integer.parseInt(data.get(index).get(4)) + number_of_reports * 0.5;
                                 Log.i(TAG, "KOEFICIJENT " + current_street + " " + String.valueOf(coefficient));
                                 if (driving) {
-                                    coefficient += Integer.parseInt(data.get(index).get(3)) * 0.1;
+                                    coefficient += Integer.parseInt(data.get(index).get(3)) * 0.2;
                                 } else
                                     coefficient += Integer.parseInt(data.get(index).get(3)) * 0.5;
 
                                 if (coefficient <= 2) {
                                     options.color(Color.GREEN);
-                                } else if (coefficient <= 5) {
+                                } else if (coefficient <= 4.5) {
                                     options.color(Color.YELLOW);
                                 } else options.color(Color.RED);
                             }
