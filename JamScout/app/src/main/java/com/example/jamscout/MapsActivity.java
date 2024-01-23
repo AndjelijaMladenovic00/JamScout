@@ -131,11 +131,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 }
 
                 if (gotoLocation != null) {
-                    gotoMarker = map.addMarker(new MarkerOptions().position(gotoLocation).title("Vase odrediste!"));
+                    gotoMarker = map.addMarker(new MarkerOptions().position(gotoLocation).title("Vaše odredište!"));
                     map.moveCamera(CameraUpdateFactory.newLatLngZoom(gotoLocation, 15));
 
                     if (!has_current_location) {
-                        Toast.makeText(MapsActivity.this, "Omogucite lokaciju da bi vam sve funkcionalnosti bile dostupne.", Toast.LENGTH_LONG).show();
+                        Toast.makeText(MapsActivity.this, "Omogućite lokaciju da bi vam sve funkcionalnosti bile dostupne.", Toast.LENGTH_LONG).show();
                     } else {
                         String url = getDirectionsURL(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()), gotoLocation);
                         DownloadTask task = new DownloadTask(MapsActivity.this);
@@ -278,7 +278,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     Address address = addressList.get(0);
                     gotoLocation = new LatLng(address.getLatitude(), address.getLongitude());
 
-                    gotoMarker = map.addMarker(new MarkerOptions().position(gotoLocation).title("Vase odrediste!"));
+                    gotoMarker = map.addMarker(new MarkerOptions().position(gotoLocation).title("Vaše odredište!"));
                     map.moveCamera(CameraUpdateFactory.newLatLngZoom(gotoLocation, 15));
 
                     if (!has_current_location) {
@@ -352,7 +352,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         .findFragmentById(R.id.map);
                 mapFragment.getMapAsync(MapsActivity.this);
 
-                Toast.makeText(this, "Niste omogucili pristup lokaciji, funkcionalnosti ce biti ogranicene.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Niste omogucili pristup lokaciji, funkcionalnosti ce biti ogranicene.", Toast.LENGTH_LONG).show();
             }
         }
     }
